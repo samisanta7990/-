@@ -313,6 +313,27 @@ function coinDetail(o){
   bar=`<div class="abr">${main}</div><div class="abr sm">${bt('🔁 Wrong login',`wrongLogin(${o.id})`)}${bt('↩️ Refund',`refund(${o.id})`)}</div>`}
  return{title:`#${o.id} · ${E(o.package||o.product)}`,sub:`${E(o.phone||'')} · ${ago(o.created_at)}`,chip:chip(stT,stC),body:b,bar}}
 
+function dealDetail(d){
+ const sec=d.secrets||{},S1=sec.seller||{},B1=sec.buyer||{},st=d.status,off=d.offer||{},closed=['done','declined','cancelled'].includes(st);
+ const order=['requested','login','ask1','code1','verify','code3','pay','handover','done'],n=Math.max(0,order.indexOf(st));
+ const swap=d.kind=='swap',pays=d.pays||[],pend=pays.find(p=>p.order_status=='awaiting_review');
+ const person=(lbl,name,phone)=>`<div class="who"><div class="av">${E(String(name||'?').slice(0,1).toUpperCase())}</div><div><div class="dl" style="margin:0">${lbl}</div><div class="big">${E(name||'—')}</div>${phone?`<div class="kvv">${E(phone)} ${cpB(phone)}</div>`:''}</div></div>`;
+ let b=`<div class="dc"><div class="dl">DEAL D${d.id} · ${swap?'EXCHANGE':'BUY'}</div><div class="big">${E(d.title||'Account')}</div>${swap?`<div class="amt" style="font-size:22px">${d.mode&&d.mode!='even'?(d.mode=='buyer_adds'?'Swapper':'Owner')+' adds '+E(d.amount)+' ETB':'Even swap'}</div>${kv('Fee paid by',E(d.fee_payer||'—'))}${off.ovr?kv('Swapper OVR',E(off.ovr)):''}${off.note?`<div class="note">${E(off.note)}</div>`:''}`:`<div class="amt">${E(d.price)} ETB</div>`}
+  <div class="prg" style="margin-top:12px"><i style="width:${Math.round(n*100/8)}%"></i></div><small class="sub">Step ${Math.min(n+1,8)} of 8 · ${DLSTEP[st]||E(st)}</small></div>`;
+ b+=`<div class="dc"><div class="dl">${swap?'SWAPPER':'BUYER'}</div>${person(swap?'Swapper':'Buyer',d.buyer_name,d.phone)}${d.phone?`<div class="row2" style="margin-top:12px"><a class="btn s ab" href="tel:${E(d.phone)}">📞 Call</a></div>`:''}</div>`;
+ b+=`<div class="dc"><div class="dl">OWNER</div>${person('Owner',d.seller_name||'eFootballET','')}</div>`;
+ if(swap&&(off.images||[]).length)b+=`<div class="dc"><div class="dl">SWAPPER SCREENSHOTS</div>${bt('🖼 Open screenshots',`dlImgs(${d.id},this)`)}<div id="di${d.id}"></div></div>`;
+ const side=(t,s)=>`<div class="dc"><div class="dl">${t} ACCOUNT</div>${s.email||s.pass?kv('Email',E(s.email||'—'),s.email)+kv('Password',E(s.pass||'—'),s.pass):'<small class="sub">⏳ login not received</small>'}${kv('Code 1',s.code1?`<span class="code" style="font-size:26px">${E(s.code1)}</span>`:'<small class="sub">—</small>',s.code1||'')}${kv('Code 3',s.code3?`<span class="code" style="font-size:26px">${E(s.code3)}</span>`:'<small class="sub">—</small>',s.code3||'')}</div>`;
+ b+=side('OWNER',S1);if(swap)b+=side('SWAPPER',B1);
+ if(pays.length)b+=`<div class="dc"><div class="dl">PAYMENT</div>${pays.map(p=>`<div class="kv"><small>${p.side=='buyer'?(swap?'Swapper':'Buyer'):'Owner'} pays</small><div class="kvv">${E(p.due)} ETB · ${p.ok?'✅ confirmed':p.order_status=='awaiting_review'?'🔎 receipt sent':p.order_status=='rejected'?'❌ rejected':'⏳ not paid yet'}</div>${p.receipt?`<div class="row2" style="margin-top:8px">${bt('🖼 Receipt',`rcpt(${p.order_id},this)`)}</div><div id="rc${p.order_id}"></div>`:''}</div>`).join('')}</div>`;
+ let bar='';
+ if(st=='ask1')bar=`<div class="abr">${bt('🔐 Konami sent Code 1 — ask customer',`dlAct(${d.id},'ask1')`,'')}</div>`;
+ else if(st=='verify')bar=`<div class="abr">${bt('✅ Verified — account is OK',`dlAct(${d.id},'verified')`,'')}</div>`;
+ else if(st=='pay'&&pend)bar=`<div class="abr">${bt('✅ Approve payment',`ordAct(${pend.order_id},'ok')`,'')}${bt('❌ Reject',`ordAct(${pend.order_id},'no')`)}</div>`;
+ else if(st=='handover')bar=`<div class="abr">${bt('🎉 Handed over — complete',`dlAct(${d.id},'complete')`,'')}</div>`;
+ else if(!closed)bar=`<div class="abr"><div class="warn" style="flex:1">⏳ ${({requested:'Waiting for the owner to accept',login:'Waiting for the login details',code1:'Waiting for Code 1',code3:'Waiting for Code 3 (customer was notified)',pay:'Waiting for payment'})[st]||'Waiting'}</div></div>`;
+ if(!closed)bar+=`<div class="abr sm">${bt('🗑 Cancel deal',`dlCancel(${d.id})`)}</div>`;
+ return{title:`D${d.id} · ${E(d.title||'Account deal')}`,sub:`${swap?'Exchange':'Buy'} · ${E(d.buyer_name||d.phone||'')}`,chip:chip(DLSTEP[st]||E(st),st=='done'?'g':closed?'r':(needsD(d)?'g':'')),body:b,bar}}
 /* ---------- CARDS + DETAIL SHEET ---------- */
 const oc=(k,id,ic,title,sub,amt,st,cls,hot)=>`<div class="oc${hot?' hot':''}" onclick="openSheet('${k}',${id})"><div class="oi">${ic}</div><div class="om"><b>${title}</b><small>${sub}</small></div><div class="or"><b>${amt}</b>${chip(st,cls)}</div></div>`;
 function coinStat(o){const rd=D.ready[o.code];
@@ -329,7 +350,7 @@ function closeSheet(pop){SH=null;const e=$('sh');if(e)e.remove();if(!pop&&histor
 window.addEventListener('popstate',()=>{if(SH)closeSheet(true)});
 function caseHtml(k,id){if(k=='o'){const o=D.orders.find(x=>x.id==id);return o&&coinCase(o)}if(k=='d'){const d=(D.deals||[]).find(x=>x.id==id);return d&&dealCase(d)}if(k=='s'){const o=D.orders.find(x=>x.id==id);return o&&saleCase(o)}if(k=='x'){const c=swapCases().find(x=>x.cid==id);return c&&swapCase(c)}return null}
 function sheetPaint(force){if(!SH)return;const a=document.activeElement;if(!force&&a&&a.closest&&a.closest('#sh')&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))return;
- if(SH.k=='o'){const o=D.orders.find(x=>x.id==SH.id);if(!o){closeSheet();return}const d=coinDetail(o);let e=$('sh');if(!e){e=document.createElement('div');e.id='sh';document.body.appendChild(e)}
+ if(SH.k=='o'||SH.k=='d'){const src=SH.k=='o'?D.orders.find(x=>x.id==SH.id):(D.deals||[]).find(x=>x.id==SH.id);if(!src){closeSheet();return}const d=SH.k=='o'?coinDetail(src):dealDetail(src);let e=$('sh');if(!e){e=document.createElement('div');e.id='sh';document.body.appendChild(e)}
   const html=`<div class="shh"><button onclick="closeSheet()">‹</button><div class="m"><b>${d.title}</b><small>${d.sub}</small></div>${d.chip}</div><div class="shb dt">${d.body}</div>${d.bar?`<div class="abar">${d.bar}</div>`:''}`;
   if(e.__h!==html){e.__h=html;const q=e.querySelector('.shb'),y=q?q.scrollTop:0;e.innerHTML=html;const n=e.querySelector('.shb');if(n)n.scrollTop=y}return}
  const h=caseHtml(SH.k,SH.id);if(!h){closeSheet();return}
